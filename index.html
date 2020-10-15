@@ -1,0 +1,110 @@
+<html>
+<script src="https://cdn.jsdelivr.net/npm/vue/dist/vue.js"></script>
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+<body>
+<div id="input">
+	<div id="log" v-for="(cat, n) in log">
+    		<p>
+      		<span class="cat">{{ cat }}</span>
+  			</p>
+ 	</div>
+  	<p>{{ message }}</p>
+	<p id="answer"></p>
+	
+		<input type="text" name="message" size="100" id="message" v-model= newMsg onkeyup="typing()"></input>
+		<button id="button" @click="addLine" onclick="send()" disabled>Submit</input>
+	
+</div>
+</body>
+</html>
+<script>
+function typing() {
+	if(document.getElementById("message").value==="") { 
+            		document.getElementById('button').disabled = true; 
+        	} else { 
+            		document.getElementById('button').disabled = false;
+        	}
+    }
+</script>
+<script>
+const app = new Vue({
+  el: '#input',
+  data: {
+    log: [],
+    newMsg: null
+  },
+  mounted() {
+    if (sessionStorage.getItem('log')) {
+      try {
+        this.log = JSON.parse(sessionStorage.getItem('log'));
+      } catch(e) {
+        sessionStorage.removeItem('log');
+      }
+    }
+  },
+  methods: {
+    addLine() {
+		if (!this.newMsg) {
+		return;
+		}
+
+		this.log.push("You: "+this.newMsg);
+		this.newMsg = '';
+		this.saveMsg();
+    },
+	addResponse(answer){
+		this.log.push(answer);
+		this.newMsg = '';
+		this.saveMsg();
+	},
+    saveMsg() { 
+		const parsed = JSON.stringify(this.log);
+		sessionStorage.setItem('log', parsed);
+    }
+  }
+})
+</script>
+<script>
+function send() {
+	var msg = document.getElementById("message").value;
+	if(msg.search("force")>=0){
+		app.addResponse("Yodabot: Here are some pokemon locations: ");
+		for (i = 0; i < 3; i++) {
+		fetch('https://pokeapi.co/api/v2/location/'+Math.floor(1+Math.random()*7))
+			.then(response => response.json())
+			.then(data => app.addResponse(data.name))
+			.catch(err => console.log(err));
+		}											
+	}
+	else{
+		lastAnswer=sessionStorage.getItem('lastAnswer');
+		var xhttp = new XMLHttpRequest();
+		document.getElementById("answer").innerHTML = 'writing...';
+		document.getElementById('button').disabled = true;
+		xhttp.onreadystatechange = function() {
+			 if (this.readyState == 4 && this.status == 200) {
+				document.getElementById("answer").innerHTML = '';
+				responseT=this.responseText;
+								
+					if (sessionStorage.getItem('lastAnswer') && sessionStorage.getItem('lastAnswer').search("Answer not found")>=0 && responseT.search("Answer not found")>=0){
+						app.addResponse("Yodabot: "+responseT+" Here are some pokemon: ");			
+						for (i = 0; i < 3; i++) {
+							fetch('https://pokeapi.co/api/v2/pokemon/'+Math.floor(Math.random()*800))
+								.then(response => response.json())
+								.then(data => app.addResponse(data.name))
+								.catch(err => console.log(err));
+						}										
+					}
+					else{
+						app.addResponse("Yodabot: "+this.responseText);
+						
+					}
+					sessionStorage.setItem('lastAnswer',this.responseText);
+			 }		
+		};
+		xhttp.open("POST", "connect.php", true);
+		xhttp.setRequestHeader("Content-Type", "application/x-www-form-urlencoded");
+		xhttp.send("message="+msg);
+	}
+}
+</script>
